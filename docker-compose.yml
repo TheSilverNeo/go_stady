@@ -1,0 +1,58 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_PASSWORD: 'go-study'
+      POSTGRES_DB: 'go-study'
+      POSTGRES_USER: 'go-study'
+      TZ: "Europe/Moscow"
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./postgresql_data:/var/lib/postgresql/data
+      - ./sql/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U go-study -d go-study"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  migrate:
+    image: migrate/migrate
+    restart: on-failure
+    container_name: migrate
+    volumes:
+      - ./migrations:/app/migrations
+    depends_on:
+      - postgres
+
+  #swagger-ui:
+  #  image: swaggerapi/swagger-ui:v5.31.0
+  #  container_name: swagger-ui
+  #  ports:
+  #    - "8081:8080"
+  #  volumes:
+  #    - ./cmd/api/swagger:/usr/share/nginx/html/swagger-specs
+
+  app:
+    build:
+      context: .
+      dockerfile: .docker/Dockerfile
+    container_name: app
+    restart: unless-stopped
+    env_file:
+      - .env
+    volumes:
+      - .:/app
+    ports:
+      - "8080:8080"
+      - "2345:2345"
+    depends_on:
+      - postgres
+
+volumes:
+  postgresql_data:
